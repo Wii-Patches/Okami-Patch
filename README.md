@@ -33,8 +33,13 @@ absolutely (centre = middle of the screen).
 
 Verified in Dolphin on the USA release: the status the game receives for every
 button, both sticks and the pointer, for both a Classic Controller and a
-GameCube pad. **Not yet played through, not tested on a real Wii, and the
-European build is carried over by signature search but not run.**
+GameCube pad, and the game itself with the Classic Controller (title screen,
+New Game, pause menu, Amaterasu walking with the left stick). The Japanese
+GameCube patch was checked the same way. **Not tested on a real Wii, the
+Celestial Brush is not checked (it is locked at the start of the game), and the
+European build is carried over by signature search but not run.** On the
+Japanese release the Classic Controller reports its buttons correctly but the
+game stops polling once the stick moves, so only the GameCube patch ships there.
 
 - a Wii Remote must stay connected (also with the GameCube pad)
 - plug the GameCube pad in before starting the game
