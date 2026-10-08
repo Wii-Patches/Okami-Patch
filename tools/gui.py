@@ -115,7 +115,7 @@ class App(BASE):
         if not os.path.isfile(image_path):
             messagebox.showerror('Not a file', '%s is not a file.' % image_path)
             return
-        which = [n for n, v in (('cc', self.cc), ('gc', self.gc))) if v.get()]
+        which = [n for n, v in (('cc', self.cc), ('gc', self.gc)) if v.get()]
         if not which:
             messagebox.showerror('Nothing selected', 'Tick at least one patch.')
             return
