@@ -52,12 +52,13 @@ CFLAGS = ['-O2', '-mcpu=750', '-msoft-float', '-msdata=none', '-ffreestanding', 
           '-fno-ident', '-Wall', '-Werror']
 
 
-def compile_hook(c_source, stub_source, base, defines=None, syms=None):
+def compile_hook(c_source, stub_source, base, defines=None, syms=None, symbols=False):
     """Build a C hook: `b stub`, the C code (entry `func`), then the asm `stub`.
 
     The first word jumps over the C code, so the whole blob can be run from its
     first byte (that is where a Hook's branch lands).  The stub must end just
-    before the word the injector turns into the branch back.  Returns bytes.
+    before the word the injector turns into the branch back.  Returns bytes, or
+    (bytes, {name: address}) of the global functions with `symbols`.
     """
     defines = defines or {}
     syms = syms or {}
@@ -73,15 +74,21 @@ def compile_hook(c_source, stub_source, base, defines=None, syms=None):
         subprocess.run(cc, check=True)
         for n in ('entry', 'stub'):
             subprocess.run([_tool('as'), '-mbig', '-mgekko', p(n + '.s'), '-o', p(n + '.o')], check=True)
-        ld = [_tool('ld'), '-Ttext=0x%X' % base, '--oformat', 'binary', p('entry.o'), p('hook.o'), p('stub.o'),
-              '-o', p('out.bin')]
+        ld = [_tool('ld'), '-Ttext=0x%X' % base, p('entry.o'), p('hook.o'), p('stub.o'), '-o', p('out.elf')]
         for k, v in syms.items():
             ld[1:1] = ['--defsym', '%s=0x%X' % (k, v)]
         subprocess.run(ld, check=True)
+        subprocess.run([_tool('objcopy'), '-O', 'binary', '-j', '.text', p('out.elf'), p('out.bin')], check=True)
+        table = {}
+        for line in subprocess.run([_tool('nm'), p('out.elf')], capture_output=True, text=True).stdout.splitlines():
+            f = line.split()
+            if len(f) == 3 and f[1] == 'T':
+                table[f[2]] = int(f[0], 16)
         # a data or rodata section would land after the code and break the "one run of words" model
         sizes = subprocess.run([_tool('size'), '-A', p('hook.o')], capture_output=True, text=True).stdout
         extra = [l.split()[0] for l in sizes.splitlines() if l.startswith(('.rodata', '.data', '.sdata', '.bss', '.sbss', '.sdata2', '.rodata'))
                  and int(l.split()[1]) > 0]
         if extra:
             raise RuntimeError('hook.c needs data sections (%s): keep it free of globals and tables' % ', '.join(extra))
-        return open(p('out.bin'), 'rb').read()
+        data = open(p('out.bin'), 'rb').read()
+        return (data, table) if symbols else data

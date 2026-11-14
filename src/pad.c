@@ -185,6 +185,9 @@ static inline void from_classic(const u8 *b, struct input *in)
     in->ry = stick8((s16)rd16(b + CL_RY), 40, 460);
 }
 
+/* A valid GameCube pad answer: no error, and the "use origin" bit set. */
+#define PAD_OK(h) (!((h) & 0x80000000u) && ((h) & 0x00800000u))
+
 /* Returns 1 when a pad answered on one of the four ports. */
 static inline int from_pad(struct input *in)
 {
@@ -196,7 +199,7 @@ static inline int from_pad(struct input *in)
     for (c = 0; c < 4; c++) {
         h = SI_INH(c);
         l = SI_INL(c);
-        if (!(h & 0x80000000u) && (h & 0x00800000u)) {
+        if (PAD_OK(h)) {
             found = 1;
             break;
         }
@@ -300,3 +303,96 @@ void pad_hook(u8 *b, const u8 *src)
     if (have)
         apply(b, &in, 0);
 }
+
+#if MODE & M_GC
+/* ---- Playing without a Wii Remote ---------------------------------------
+ *
+ * With no remote on channel 0, WPADProbe answers -1 and KPAD never takes a
+ * sample, so the game would sit on its "connect a Wii Remote" handling and the
+ * WPADRead hook above would never run.  These two entries stand in for the
+ * remote while a GameCube pad answers on SI:
+ *
+ *   fake_probe  WPADProbe: channel 0 reports connected, extension Nunchuk, and
+ *               the SDK's data format is set to the Nunchuk format (5) the
+ *               game would have asked for, so WPADRead copies a full
+ *               Nunchuk-format status and KPAD decodes it as one.  The first
+ *               time, the game's extension callback is told a Nunchuk was
+ *               plugged in.
+ *   kpad_wake   KPADRead, before it looks at its sample count: take a sample
+ *               through KPAD's own sampling callback, which ends in WPADRead
+ *               and therefore in pad_hook.
+ *
+ * A real remote always wins: both do nothing once the SDK reports channel 0
+ * as connected.  Region constants come in as defines: WPAD_CHANS (the SDK's
+ * table of channel control blocks), KPAD_SAMPLER (KPAD's sampling callback)
+ * and KPAD_SAMPLES (samples to take per read).
+ */
+#define WPAD_RESULT 0x8BC   /* -1 = no controller */
+#define WPAD_FORMAT 0x8B8
+#define WPAD_EXT_CB 0x8A0     /* extension callback (chan, device type) */
+#define WPAD_CONNECT_CB 0x8A4 /* connect callback (chan, result) */
+#define WPAD_DEV 0x8C1        /* device type, 0xFD = no remote */
+
+static inline int pad_answers(void)
+{
+    int c;
+
+    poller();
+    for (c = 0; c < 4; c++)
+        if (PAD_OK(SI_INH(c)))
+            return 1;
+    return 0;
+}
+
+static inline int stand_in(const u8 *ctrl)
+{
+    return ctrl == *(u8 *const *)WPAD_CHANS && *(const int *)(ctrl + WPAD_RESULT) == -1 && pad_answers();
+}
+
+/* r31 = channel control block, r30 = the caller's type pointer (may be 0).
+ * Returns 1 to make WPADProbe return 0 (connected). */
+int fake_probe(u8 *ctrl, u32 *type)
+{
+    void (*cb)(int, int);
+
+    if (!stand_in(ctrl))
+        return 0;
+    *(u32 *)(ctrl + WPAD_FORMAT) = 5;
+    if (ctrl[WPAD_DEV] != 1) {
+        /* First time: tell the game a Nunchuk was plugged in, through the
+         * extension callback it registered with the SDK.  The game keeps its
+         * own "Nunchuk attached" flags, set only from there, and stops in the
+         * opening scene without them.  (Its connect callback is left alone:
+         * it starts remote set-up -- auto-sampling, rumble, pointer camera --
+         * that never completes without a remote and holds up the boot logos.)
+         * The SDK's device byte (0xFD with no remote) doubles as the "already
+         * announced" mark, and is set first because the game may probe again
+         * from its callback. */
+        ctrl[WPAD_DEV] = 1;
+#ifdef ANNOUNCE_CONNECT
+        /* Japan: the game registers its extension callback only from its
+         * connect callback (chained through KPAD's), so announce the
+         * connection first. */
+        cb = *(void (**)(int, int))(ctrl + WPAD_CONNECT_CB);
+        if (cb)
+            cb(0, 0);
+#endif
+        cb = *(void (**)(int, int))(ctrl + WPAD_EXT_CB);
+        if (cb)
+            cb(0, 1);
+    }
+    if (type)
+        *type = 1;
+    return 1;
+}
+
+void kpad_wake(int chan)
+{
+    int i;
+
+    if (chan != 0 || !stand_in(*(u8 *const *)WPAD_CHANS))
+        return;
+    for (i = 0; i < KPAD_SAMPLES; i++)
+        ((void (*)(int))KPAD_SAMPLER)(0);
+}
+#endif
