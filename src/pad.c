@@ -117,6 +117,16 @@ typedef signed short s16;
 #define DBG(i) ((void)0)
 #endif
 
+#define SWING_ACC 0x180   /* about 3.7 g (the status reads 0x68 at 1 g) */
+
+static inline u32 tbl(void)
+{
+    u32 t;
+
+    __asm__ volatile("mftb %0" : "=r"(t));
+    return t;
+}
+
 static inline u16 rd16(const u8 *p) { return (u16)((p[0] << 8) | p[1]); }
 static inline void wr16(u8 *p, u16 v) { p[0] = v >> 8; p[1] = v; }
 
@@ -156,6 +166,7 @@ static inline void poller(void)
 
 struct input {
     u16 w;         /* Wii Remote button bits to add */
+    int swing;     /* shake the remote (the main-weapon attack) */
     int lx, ly;    /* left stick, +-127, up/right positive */
     int rx, ry;    /* right stick */
 };
@@ -167,12 +178,18 @@ static inline void from_classic(const u8 *b, struct input *in)
 
     if (c & CC_A) w |= W_A;
     if (c & CC_B) w |= W_B;
-    if (c & CC_X) w |= W_ONE;
+    /* X swings the remote (the attack); with - held it is button 1 instead */
+    if (c & CC_X) {
+        if (c & CC_MINUS)
+            w |= W_ONE;
+        else
+            in->swing = 1;
+    }
     if (c & CC_Y) w |= W_TWO;
     if (c & (CC_ZL | CC_L)) w |= W_Z;
     if (c & (CC_ZR | CC_R)) w |= W_C;
     if (c & CC_PLUS) w |= W_PLUS;
-    if (c & CC_MINUS) w |= W_MINUS;
+    if ((c & CC_MINUS) && !(c & CC_X)) w |= W_MINUS;
     if (c & CC_HOME) w |= W_HOME;
     if (c & CC_UP) w |= W_UP;
     if (c & CC_DOWN) w |= W_DOWN;
@@ -206,15 +223,22 @@ static inline int from_pad(struct input *in)
     }
     if (!found)
         return 0;
+    in->swing = 0;
     p = h >> 16;
     b = p;
     if (b & PAD_A) w |= W_A;
     if (b & PAD_B) w |= W_B;
-    if (b & PAD_X) w |= W_ONE;
+    /* X swings the remote (the attack); with Z held it is button 1 instead */
+    if (b & PAD_X) {
+        if (b & PAD_Z)
+            w |= W_ONE;
+        else
+            in->swing = 1;
+    }
     if (b & PAD_Y) w |= W_TWO;
     if (b & PAD_L) w |= W_Z;
     if (b & PAD_R) w |= W_C;
-    if (b & PAD_Z) w |= W_MINUS;
+    if ((b & PAD_Z) && !(b & PAD_X)) w |= W_MINUS;
     if (b & PAD_START) w |= W_PLUS;
     if (b & PAD_UP) w |= W_UP;
     if (b & PAD_DOWN) w |= W_DOWN;
@@ -246,7 +270,16 @@ static inline void apply(u8 *b, const struct input *in, int keep_remote_ir)
     u16 w = rd16(b + B_BTN) | in->w;
 
     wr16(b + B_BTN, w);
-    if (!rd16(b + B_ACC) && !rd16(b + B_ACC + 2) && !rd16(b + B_ACC + 4))
+    if (in->swing) {
+        /* A remote swing: a hard acceleration whose sign flips about once a
+         * frame (bit 20 of the 60.75 MHz timebase), so it reads as a shake
+         * for as long as the button is held. */
+        int a = (tbl() >> 20) & 1 ? SWING_ACC : -SWING_ACC;
+
+        wr16(b + B_ACC, a);
+        wr16(b + B_ACC + 2, a);
+        wr16(b + B_ACC + 4, 0x68 - a);
+    } else if (!rd16(b + B_ACC) && !rd16(b + B_ACC + 2) && !rd16(b + B_ACC + 4))
         wr16(b + B_ACC + 4, 0x68);                 /* resting remote, buttons up */
     (void)keep_remote_ir;
     /* the pointer: two dots, as a sensor bar would give */
@@ -275,6 +308,7 @@ void pad_hook(u8 *b, const u8 *src)
     int have = 0;
 
     in.w = 0;
+    in.swing = 0;
     in.lx = in.ly = in.rx = in.ry = 0;
 #if MODE & M_CC
     if (src[B_DEV] == 2) {
@@ -289,6 +323,7 @@ void pad_hook(u8 *b, const u8 *src)
     if (from_pad(&pad)) {
         DBG(1);
         in.w |= pad.w;
+        in.swing |= pad.swing;
         if (pad.lx || pad.ly) {
             in.lx = pad.lx;
             in.ly = pad.ly;

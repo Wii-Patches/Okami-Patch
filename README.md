@@ -24,15 +24,16 @@ Nunchuk was plugged in (on the Japanese release its connect callback too).
 
 ## Controls
 
-| Pad | Move | Brush pointer | A / B | 1 / 2 | Nunchuk Z / C | + / - / HOME |
-|---|---|---|---|---|---|---|
-| Classic Controller | left stick | right stick | A / B | X / Y | ZL or L / ZR or R | + / - / HOME |
-| GameCube controller | stick | C-stick | A / B | X / Y | L / R | START / Z / L+R+START |
+| Pad | Move | Brush pointer | Swing (attack) | A / B | 1 / 2 | Nunchuk Z / C | + / - / HOME |
+|---|---|---|---|---|---|---|---|
+| Classic Controller | left stick | right stick | X | A / B | - + X / Y | ZL or L / ZR or R | + / - / HOME |
+| GameCube controller | stick | C-stick | X | A / B | Z + X / Y | L / R | START / Z / L+R+START |
 
 The D-pad is the D-pad. The right stick / C-stick positions the pointer
-absolutely (centre = middle of the screen). The Japanese release advances story
-text with 2 / C, so Y / R on the GameCube pad (Y / ZR on the Classic
-Controller).
+absolutely (centre = middle of the screen). Holding X swings the Wii Remote for
+as long as it is held; button 1 moved to Z + X (GameCube) or - + X (Classic
+Controller). The Japanese release advances story text with 2 / C, so Y / R on
+the GameCube pad (Y / ZR on the Classic Controller).
 
 ## Status
 
@@ -43,14 +44,16 @@ screen. The USA release was also played with the Classic Controller (title
 screen, New Game, pause menu, Amaterasu walking with the left stick). With the
 GameCube pad and **no Wii Remote**, the USA and European releases were played
 from the boot screens into a new game (menus, Amaterasu walking, camera), and the
-Japanese release through its title menu and the opening story. **Not tested on a
-real Wii, and the Celestial Brush is not checked (it is locked at the start of
-the game).**
+Japanese release through its title menu and the opening story. The X swing was
+checked on the game's own input state (it registers as a swing); the attack
+itself was not watched on screen. **Not tested on a real Wii, and the Celestial
+Brush is not checked (it is locked at the start of the game).**
 
 - the GameCube pad needs no Wii Remote; one that is connected keeps working
   alongside it (the Classic Controller plugs into a remote, so that one is needed)
 - plug the GameCube pad in before starting the game
-- motion-only actions need a Wii Remote: its own motion is still read
+- the swing is the only motion the pads fake; other motion-only actions need a
+  Wii Remote, whose own motion is still read when one is connected
 
 ## Using it
 

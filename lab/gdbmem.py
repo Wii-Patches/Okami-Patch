@@ -9,8 +9,16 @@ import socket, time, sys
 
 
 def _is_err(r):
-    """An RSP error reply is 'E' plus two hex digits; memory that starts with 0xE_ is not one."""
-    return len(r) == 3 and r[0] == 'E'
+    """An RSP error reply is 'E' plus two hex digits; memory that starts with 0xE_ is not one.
+    Anything that is not plain hex (a late stop reply such as 'T05...') also means the stream is out
+    of step, which happens when the host is busy."""
+    if len(r) == 3 and r[0] == 'E':
+        return True
+    try:
+        bytes.fromhex(r)
+    except ValueError:
+        return True
+    return False
 
 
 class Gdb:
