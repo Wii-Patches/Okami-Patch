@@ -1,7 +1,8 @@
 # Entry stub for pad.c, placed right after it in the injected section.  Runs at
 # the instruction that hands WPADRead's interrupt state back to OSRestoreInterrupts,
-# with @BUF@ = the register holding the WPADStatus being returned.
-# Saves everything the C code might touch, calls pad_hook(r30), restores, then
+# with @BUF@ = the register holding the WPADStatus being returned and @SRC@ =
+# the SDK's own status it was copied from (the same buffer when there is no copy).
+# Saves everything the C code might touch, calls pad_hook(buf, src), restores, then
 # runs the displaced instruction.
     .globl stub
 stub:
@@ -26,6 +27,7 @@ stub:
     mfxer   0
     stw     0, 0x40(1)
     mr      3, @BUF@
+    mr      4, @SRC@
     bl      pad_hook
     lwz     0, 0x40(1)
     mtxer   0

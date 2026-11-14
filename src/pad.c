@@ -263,7 +263,10 @@ static inline void apply(u8 *b, const struct input *in, int keep_remote_ir)
     b[B_ERR] = 0;
 }
 
-void pad_hook(u8 *b)
+/* `src` is the SDK's own copy of the status: on the Japanese release WPADRead
+ * only copies the bytes of the format the game asked for (Nunchuk, 0x32), which
+ * leaves out the Classic Controller's right stick Y. */
+void pad_hook(u8 *b, const u8 *src)
 {
     struct input in;
     int have = 0;
@@ -271,9 +274,9 @@ void pad_hook(u8 *b)
     in.w = 0;
     in.lx = in.ly = in.rx = in.ry = 0;
 #if MODE & M_CC
-    if (b[B_DEV] == 2) {
+    if (src[B_DEV] == 2) {
         DBG(0);
-        from_classic(b, &in);
+        from_classic(src, &in);
         have = 1;
     }
 #endif

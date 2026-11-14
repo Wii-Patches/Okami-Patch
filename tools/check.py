@@ -50,8 +50,6 @@ def main():
     for region in REGIONS:
         for name in features.FEATURES:
             taken = []
-            if region == 'ROWJ08' and name != 'gc':
-                continue                                  # Japanese Classic Controller: see src/gen_pad.py
             check(features.available(name, region), 'missing prebuilt %s_%s.json' % (name, region))
             if not features.available(name, region):
                 continue

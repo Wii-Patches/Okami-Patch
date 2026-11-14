@@ -8,6 +8,11 @@ correct on disk.
 import socket, time, sys
 
 
+def _is_err(r):
+    """An RSP error reply is 'E' plus two hex digits; memory that starts with 0xE_ is not one."""
+    return len(r) == 3 and r[0] == 'E'
+
+
 class Gdb:
     def __init__(self, host='127.0.0.1', port=2159, timeout=15):
         self.s = socket.create_connection((host, port), timeout=timeout)
@@ -76,11 +81,11 @@ class Gdb:
             r = None
             for attempt in range(3):
                 r = self.cmd('m%x,%x' % (addr + off, n))
-                if r and not r.startswith('E'):
+                if r and not _is_err(r):
                     break
                 time.sleep(0.2)
                 self.drain(0.2)
-            if not r or r.startswith('E'):
+            if not r or _is_err(r):
                 raise RuntimeError('read %08X+%X failed: %r' % (addr + off, n, r))
             out += bytes.fromhex(r)
             off += n

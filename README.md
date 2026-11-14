@@ -1,9 +1,8 @@
 # Okami Patch
 
 Play **Okami** (Wii) with a **Classic Controller** or a **GameCube controller**
-instead of a Wii Remote + Nunchuk. Works with the USA (`ROWE08`) and European
-(`ROWP08`) releases; the Japanese release (`ROWJ08`) has the GameCube patch only
-for now. Each patch is optional.
+instead of a Wii Remote + Nunchuk. Works with the USA (`ROWE08`), European
+(`ROWP08`) and Japanese (`ROWJ08`) releases. Each patch is optional.
 
 The patches are applied to your own copy of the game: drop a clean `.wbfs` or
 `.iso` onto the patcher and play the result on a Wii (USB loader) or in Dolphin.
@@ -16,7 +15,8 @@ Okami reads its pad straight from `WPADRead` and only plays properly when
 the status the game is about to read so it looks like a Wii Remote + Nunchuk:
 buttons, Nunchuk stick, and a pair of fake sensor-bar dots for the IR pointer
 (the Celestial Brush cursor). For a Classic Controller the extension is also
-announced as a Nunchuk and the SDK is asked for the Classic data format. For a
+announced as a Nunchuk; the stick and button data are taken from the SDK's own
+copy of the status, since the game only receives the Nunchuk-sized part. For a
 GameCube controller the SI hardware is polled directly.
 
 ## Controls
@@ -31,15 +31,13 @@ absolutely (centre = middle of the screen).
 
 ## Status
 
-Verified in Dolphin on the USA release: the status the game receives for every
-button, both sticks and the pointer, for both a Classic Controller and a
-GameCube pad, and the game itself with the Classic Controller (title screen,
-New Game, pause menu, Amaterasu walking with the left stick). The Japanese
-GameCube patch was checked the same way. **Not tested on a real Wii, the
-Celestial Brush is not checked (it is locked at the start of the game), and the
-European build is carried over by signature search but not run.** On the
-Japanese release the Classic Controller reports its buttons correctly but the
-game stops polling once the stick moves, so only the GameCube patch ships there.
+Verified in Dolphin on all three releases: the status the game receives for
+every button, both sticks and the pointer, for a Classic Controller, a GameCube
+pad, and both together, with no crash when the stick is moved on the title
+screen. The USA release was also played with the Classic Controller (title
+screen, New Game, pause menu, Amaterasu walking with the left stick). **Not
+tested on a real Wii, and the Celestial Brush is not checked (it is locked at the
+start of the game).**
 
 - a Wii Remote must stay connected (also with the GameCube pad)
 - plug the GameCube pad in before starting the game
